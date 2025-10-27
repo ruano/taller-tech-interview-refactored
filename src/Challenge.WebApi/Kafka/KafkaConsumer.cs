@@ -34,13 +34,16 @@ public class KafkaConsumer : BackgroundService
         {
             try
             {
-                var cr = _consumer.Consume(stoppingToken);
+                var consumerResult = _consumer.Consume(TimeSpan.FromSeconds(1));
 
-                _logger.LogInformation("Message consumed from topic {Topic}, partition {Partition}, offset {Offset}", cr.Topic, cr.Partition, cr.Offset);
+                if (consumerResult != null)
+                {
+                    _logger.LogInformation("Message consumed from topic {Topic}, partition {Partition}, offset {Offset}", consumerResult.Topic, consumerResult.Partition, consumerResult.Offset);
 
-                var userEventDto = JsonSerializer.Deserialize<UserEventDto>(cr.Message.Value);
+                    var userEventDto = JsonSerializer.Deserialize<UserEventDto>(consumerResult.Message.Value);
 
-                _eventStore.Add(userEventDto!);
+                    _eventStore.Add(userEventDto!);
+                }
             }
             catch (ConsumeException ex)
             {
