@@ -6,7 +6,6 @@ namespace Challenge.WebApi.Kafka;
 
 public class KafkaConsumer : BackgroundService
 {
-    private readonly string _topic;
     private readonly IConsumer<Ignore, string> _consumer;
     private readonly EventStore _eventStore;
     private readonly ILogger<KafkaConsumer> _logger;
@@ -20,16 +19,15 @@ public class KafkaConsumer : BackgroundService
             AutoOffsetReset = AutoOffsetReset.Earliest
         };
 
-        _topic = configuration["Kafka:Topic"]!;
         _consumer = new ConsumerBuilder<Ignore, string>(config).Build();
+        _consumer.Subscribe(configuration["Kafka:Topic"]!);
+
         _eventStore = eventStore;
         _logger = logger;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _consumer.Subscribe(_topic);
-
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -47,11 +45,18 @@ public class KafkaConsumer : BackgroundService
             }
             catch (ConsumeException ex)
             {
-                _logger.LogError("Error consuming message: {Reason}", ex.Error.Reason);
+                _logger.LogError(ex, "Error consuming message: {Reason}", ex.Error.Reason);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error consuming message: {Reason}", ex.Message);
             }
 
             await Task.Delay(500, stoppingToken);
         }
+
+        _consumer.Close();
+        _logger.LogInformation("KafkaConsumer stopped");
     }
 
     public override void Dispose()

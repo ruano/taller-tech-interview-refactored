@@ -5,17 +5,14 @@ using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddScoped<IKafkaProduder, KafkaProduder>();
+builder.Services.AddScoped<IKafkaProducer, KafkaProducer>();
 builder.Services.AddSingleton<EventStore>();
 builder.Services.AddHostedService<KafkaConsumer>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -24,9 +21,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("/events", (IKafkaProduder KafkaProduder, IConfiguration configuration, [FromBody] UserEventDto dto) =>
+app.MapPost("/events", async (IKafkaProducer kafkaProduder, IConfiguration configuration, [FromBody] UserEventDto dto) =>
 {
-    KafkaProduder.SendAsync(configuration["Kafka:Topic"]!, dto);
+    await kafkaProduder.SendAsync(configuration["Kafka:Topic"]!, dto);
 
     return Results.Accepted();
 })
